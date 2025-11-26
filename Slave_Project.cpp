@@ -1,28 +1,41 @@
 #include <Arduino.h>
+#include <softWareSerial.h>
 
-const int PIN_LOCK = 5;
-const int PIN_FAN = 4;
-const int PIN_MAG = 9;
-boolean status_FAN = false;
-boolean status_LOCK = false;
+SoftwareSerial mySerial(9,8); // UART : 9(RX), 8(TX)
+byte temp; // 온도는 UART로
 
-const int pinTrig = 8;
-const int pinEcho = 7;
-int rangeMax = 10;
+const int PIN_LOCK = 7;
+const int PIN_FAN = 6;
+const int PIN_MAG = 5;
+boolean itsLOCK = true;  // 잠김 : 1(Lock) 0(UNLock)
+boolean itsOPEN = false; // 열림 : 1(Open) 0(Close)
+
+// 초음파
+const int pinTrig = 4;
+const int pinEcho = 3;
+int rangeMax = 20; // 20cm 감지
 int rangeMin = 0;
 long T, L;
+
+int inside = 0; // 안에 있음 여부 0 Empty
 
 volatile byte command = 0;
 boolean IhavSel = 0;
 boolean complet_JOB = false; // 루틴 확인용
+boolean LOCK_OFF = false; // SPI 명령. 
+
+int MEMU = 1; // 작업 선택
 
 void setup() {
   Serial.begin(9600); // Monitoring
+  mySerial.begin(9600); // UART Init 
 
+  // SPI SPCR Set
   SPCR |= _BV(SPIE);
   SPCR |= _BV(SPE);
   SPCR &= ~_BV(MSTR);
 
+  // 솔레노이드 & 팬
   pinMode(PIN_LOCK, OUTPUT);
   pinMode(PIN_FAN, OUTPUT);
   digitalWrite(PIN_LOCK, HIGH);
@@ -36,52 +49,82 @@ void setup() {
   pinMode(PIN_MAG, INPUT);
 }
 
-
 void loop() {
-  if(IhavSel){
-    // 1. 초음파 계산 
-    digitalWrite(pinTrig, LOW); 
-    delayMicroseconds(2);
-    digitalWrite(pinTrig, HIGH); 
-    delayMicroseconds(10);
+  if(IhavSel == 1){ // 선택됨
+    // 1-1. 내부 초음파 계산 
+    digitalWrite(pinTrig, LOW);   delayMicroseconds(2);
+    digitalWrite(pinTrig, HIGH);  delayMicroseconds(10);
     digitalWrite(pinTrig, LOW);
-
     T = pulseIn(pinEcho, HIGH);
     L = T/58.82;
-    Serial.println(L); // Moniter
+    Serial.print("Length : ");
+    Serial.println(L); // Monitering
     delay(1000);
-    
-    // 2. Mgnetic
-    if (digitalRead(PIN_MAG)){
-      Serial.print("PIN_MAG : ");
-      Serial.println(PIN_MAG);
 
-    }
-
-    // FAN Control
+    // 1-1-1. itsInside? (초음파)
     if (L >= rangeMax || L <= rangeMin) 
-      digitalWrite(PIN_FAN, HIGH);
+      inside = 1; // 있으면 1
     else 
-      digitalWrite(PIN_FAN, LOW);
+      inside = 0; // 없으면 0
+    
+    // 1-2. Mgnetic (OPEN 7 : CLOSE 0)
+    itsOPEN = digitalRead(PIN_MAG);
+    Serial.print("PIN_MAG : ");
+    Serial.println(itsOPEN); // Monitoring
+    delay(10);
 
-    // LOCK Control
-    if(status_LOCK){
-      digitalWrite(PIN_LOCK, LOW);
+
+    // 선택
+    if (MEMU = 1){ // 초기 넣는 과정
+      // 너 선택된거야
+      if(itsLOCK == 1){
+        itsLOCK == 0;
+        digitalWrite(PIN_LOCK, HIGH);
+      } // OPEN 열려
+
+      if(inside == 1 && itsOPEN == 0){ // 안에 넣고 & 문이 닫히면?
+        itsLOCK = 1; //잠김
+        MEMU = 2; // Sequnce 2로 진행
+      }
+
+    } else if (MEMU = 2) { // 넣고 빼는 과정
+
+      if(LOCK_OFF == HIGH){ // 열라고 하면? 열어
+        itsLOCK = 0;
+      }
+
+      if(itsLOCK == 0 && inside == 0 && itsOPEN == 0) {
+        complet_JOB = true;
+        MEMU = 1;
+      }
+
+      // etc.) FAN control
+      if (temp > 23){
+        digitalWrite(PIN_FAN, LOW);
+      } else { // 내부에 있을때 온도 높으면 팬 작동
+        digitalWrite(PIN_FAN, HIGH);
+      }
     }
 
     // 1. 종료 : 끝났으면?
     if(complet_JOB) { // 일이 끝났으면
-  
       pinMode(MISO, OUTPUT); // MISO ON
 
+      delay (1000); // 통신 대기
+
+      pinMode(MISO, INPUT); // MISO OFF
     }
   }
 }
 
 ISR(SPI_STC_vect){
   byte c = SPDR; // BUFFER
+
   if (c == 's'){
     IhavSel = 1;
+    return;
+  } else if (c == 'p') {
+    LOCK_OFF = HIGH; // 인증 완료 열어야됨
     return;
   }
 
@@ -92,7 +135,7 @@ ISR(SPI_STC_vect){
       break;
 
     case 'c': 
-      SPDR = complet_JOB;
+      SPDR = complet_JOB; // 저 끝남요
       break;
   }
   

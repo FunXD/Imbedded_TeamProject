@@ -5,3 +5,9 @@
 PPT 작성 - 팀원 전부  
 통신 - 박준하, 김승현  
 초음파, LED, UV - 최나영  
+
+git switch main  
+git pull origin main  
+git add .  
+git commit -m "메시지"  
+git push origin main  
