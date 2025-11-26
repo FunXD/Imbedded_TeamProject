@@ -114,10 +114,6 @@ void loop() {
 
       pinMode(MISO, INPUT); // MISO OFF
     }
-  } else {
-    // 선택 안됐으면?
-    // 몰라 시발
-    // SPI나 받고 있어
   }
 }
 
