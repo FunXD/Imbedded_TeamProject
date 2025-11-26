@@ -48,7 +48,7 @@ void loop() {
     if (key == '#'){                //사물함 열림(추가예정)
       lcd.clear();
       lcd.setCursor(5,1);
-      lcd.print("locker 3 open");
+      lcd.print("locker 3 opened");
       delay(1500);
       MainScreen();
     }
