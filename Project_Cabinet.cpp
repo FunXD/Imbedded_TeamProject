@@ -12,12 +12,12 @@ boolean itsLOCK = true;  // 잠김 : 1(Lock) 0(UNLock)
 boolean itsOPEN = false; // 열림 : 1(Open) 0(Close)
 float tempture = 0;
 
-// 초음파
-const int pinTrig = 4;
-const int pinEcho = 3;
-int rangeMax = 20; // 20cm 감지
-int rangeMin = 0;
-long T, L;
+// // 초음파
+// const int pinTrig = 4;
+// const int pinEcho = 3;
+// int rangeMax = 20; // 20cm 감지
+// int rangeMin = 0;
+// long T, L;
 
 int inside = 0; // 안에 있음 여부 0 Empty
 
@@ -150,4 +150,5 @@ ISR(SPI_STC_vect){
       break;
   }
   
+
 }
