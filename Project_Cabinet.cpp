@@ -1,32 +1,52 @@
 #include <Arduino.h>
-#include <softWareSerial.h>
+#include <SoftwareSerial.h>
 
-SoftwareSerial mySerial(9,8); // UART : 9(RX), 8(TX)
-byte length = 0;
+SoftwareSerial mySerial(8,9); // UART : 8(RX), 9(TX)
 
 const int PIN_LOCK = 7;
 const int PIN_FAN = 6;
-const int PIN_LM35 = A0;
+const int PIN_LM35 = A4;
 const int PIN_MAG = 5;
+
 boolean itsLOCK = true;  // 잠김 : 1(Lock) 0(UNLock)
 boolean itsOPEN = false; // 열림 : 1(Open) 0(Close)
-float tempture = 0;
 
-// // 초음파
-// const int pinTrig = 4;
-// const int pinEcho = 3;
-// int rangeMax = 20; // 20cm 감지
-// int rangeMin = 0;
-// long T, L;
+// 초음파
+const int PIN_Trig = 4;
+const int PIN_Echo = 3;
+int rangeMax = 10; // 20cm 감지
+int rangeMin = 0;
+long T, L;
 
 int inside = 0; // 안에 있음 여부 0 Empty
+float tempture = 0; // 온도
 
-volatile byte command = 0;
 volatile boolean IhavSel = 0;
 volatile boolean complet_JOB = false; // 루틴 확인용
-boolean LOCK_OFF = false; // SPI 명령. 
+boolean LOCK_OFF = true; // SPI 명령. 
 
-int MEMU = 1; // 작업 선택
+int MENU = 1; // 작업 선택
+
+int soundinside(){
+  digitalWrite(PIN_Trig, LOW);   delayMicroseconds(2);
+  digitalWrite(PIN_Trig, HIGH);  delayMicroseconds(10);
+  digitalWrite(PIN_Trig, LOW);
+  T = pulseIn(PIN_Echo, HIGH);
+  L = T / 58.82;
+
+  if (L >= rangeMin && L <= rangeMax) 
+    return 1; // 있으면 1
+  else 
+    return 0; // 없으면 0
+} // for ultrasound
+
+void Relayinit() {
+  digitalWrite(PIN_LOCK, HIGH);
+  digitalWrite(PIN_FAN, HIGH);
+  LOCK_OFF = true;
+  complet_JOB = false;
+  itsLOCK = true;
+} // for init
 
 void setup() {
   Serial.begin(9600); // Monitoring
@@ -40,115 +60,112 @@ void setup() {
   // 솔레노이드 & 팬
   pinMode(PIN_LOCK, OUTPUT);
   pinMode(PIN_FAN, OUTPUT);
-  digitalWrite(PIN_LOCK, HIGH);
+  digitalWrite(PIN_LOCK, HIGH); // LOW == unlock : HIGH == lock
   digitalWrite(PIN_FAN, HIGH);
 
-  // 초음파
-  pinMode(pinTrig, OUTPUT);
-  pinMode(pinEcho, INPUT);
-
   // 마그네틱
-  pinMode(PIN_MAG, INPUT);
+  pinMode(PIN_MAG, INPUT_PULLUP);
+
+  // 초음파
+  pinMode(PIN_Trig, OUTPUT);
+  pinMode(PIN_Echo, INPUT);
 }
 
 void loop() {
-  if(IhavSel == 1){ // 선택됨
-    delay(100);
-    // // 1-1. 내부 초음파 계산 
-    // digitalWrite(pinTrig, LOW);   delayMicroseconds(2);
-    // digitalWrite(pinTrig, HIGH);  delayMicroseconds(10);
-    // digitalWrite(pinTrig, LOW);
-    // T = pulseIn(pinEcho, HIGH);
-    // L = T/58.82;
-    // Serial.print("Length : ");
-    // Serial.println(L); // Monitering
-    // delay(1000);
+  delay(1000);
 
-    // 1-1. 초음파 UART init
-    if(mySerial.available()){
-      length = mySerial.read(); // L == length
-      Serial.print("Length : ");
-    }
+  if(IhavSel == 1){ // 선택됨
 
     // 1-1-1. itsInside? (초음파)
-    if (length >= rangeMax || length <= rangeMin) 
-      inside = 1; // 있으면 1
-    else 
-      inside = 0; // 없으면 0
-    
-    // 1-2. Mgnetic (OPEN 7 : CLOSE 0)
+    Serial.print("InThere? : ");
+    inside = soundinside();
+    Serial.println(inside); // Monitering
+
+    // 1-2. Mgnetic (OPEN 1 : CLOSE 0)
     itsOPEN = digitalRead(PIN_MAG);
     Serial.print("PIN_MAG : ");
     Serial.println(itsOPEN); // Monitoring
-    delay(10);
-
-    // 1-3. LM35 Tempture
-    tempture = (analogRead(PIN_LM35) * 500.0) / 1024.0;
+    delay(100);
 
     // 선택
-    if (MEMU == 1){ // 초기 넣는 과정
-      // 너 선택된거야
+    if (MENU == 1){ // 초기 넣는 과정
+      Serial.println("Sequnce 1");
+      
       if(itsLOCK == 1){
         itsLOCK = 0;
-        digitalWrite(PIN_LOCK, HIGH);
-      } // OPEN 열려
+        digitalWrite(PIN_LOCK, LOW); // 솔레노이드 열림.
+      }
+
+      Serial.print("InThere? : ");
+      inside = soundinside(); // 초음파 초기화
+      Serial.println(inside); // Monitering
 
       if(inside == 1 && itsOPEN == 0){ // 안에 넣고 & 문이 닫히면?
         itsLOCK = 1; //잠김
-        MEMU = 2; // Sequnce 2로 진행
+        digitalWrite(PIN_LOCK, HIGH);
+        MENU = 2; // Sequnce 2로 진행
       }
 
-    } else if (MEMU = 2) { // 넣고 빼는 과정
+    } 
 
-      if(LOCK_OFF == HIGH){ // 열라고 하면? 열어
-        itsLOCK = 0;
+    else if (MENU == 2) { // 넣고 빼는 과정
+      Serial.println("its Sequnce 2");
+
+      // 1-3. LM35 Tempture
+      tempture = (analogRead(PIN_LM35) * 5.0 * 100.0) / 1024.0;
+      Serial.print("Temp : ");
+      Serial.println(tempture);
+      delay(1000);
+
+      // SPI Trigger
+      if(LOCK_OFF == true) { // SPI 열라고 하면?
+        itsLOCK = 0; // 잠금 해제
+        digitalWrite(PIN_LOCK, LOW);
       }
 
+      // 1-2 초음파 센서
+      Serial.print("InThere? : ");
+      inside = soundinside();
+      Serial.println(inside);
+
+      // 끝나는 조건 (잠기지 않았고, 안에가 비었고, )
       if(itsLOCK == 0 && inside == 0 && itsOPEN == 0) {
         complet_JOB = true;
-        MEMU = 1;
+        MENU = 1;
       }
 
       // etc.) FAN control
-      if (tempture > 23){ // 23 이상이면
-        digitalWrite(PIN_FAN, LOW);
-      } else { // 내부에 있을때 온도 높으면 팬 작동
-        digitalWrite(PIN_FAN, HIGH);
+      if (tempture >= 23){ // 23 이상이면
+        digitalWrite(PIN_FAN, LOW); // 0이면 작동
+      } else {
+        digitalWrite(PIN_FAN, HIGH); // 1이면 정지
       }
     }
 
     // 1. 종료 : 끝났으면?
     if(complet_JOB) { // 일이 끝났으면
-      pinMode(MISO, OUTPUT); // MISO ON
-
-      delay (1000); // 통신 대기
-
-      pinMode(MISO, INPUT); // MISO OFF
+      MENU = 1;
+      IhavSel = 0;
+      Relayinit();
     }
+
+  } else {
+    Serial.println("NOT Selet");
   }
+
 }
 
 ISR(SPI_STC_vect){
-  byte c = SPDR; // BUFFER
+  byte c = SPDR;
 
-  if (c == 's'){
+  if (c == 's') {
+    Serial.println("SPI");
+
     IhavSel = 1;
-    return;
-  } else if (c == 'p') {
-    LOCK_OFF = HIGH; // 인증 완료 열어야됨
-    return;
-  }
 
-  switch(command){
-    case 0 : 
-      command = c;
-      SPDR = 0;
-      break;
+    LOCK_OFF = !LOCK_OFF;
 
-    case 'c': 
-      SPDR = complet_JOB; // 저 끝남요
-      break;
+    return;
   }
   
-
 }
