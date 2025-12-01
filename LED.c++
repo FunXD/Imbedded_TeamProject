@@ -10,9 +10,6 @@ SoftwareSerial mySerial(8, 9);
 const int NUM_PIXELS = 16;      
 Adafruit_NeoPixel pixels(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
-const int BOX_HEIGHT = 29;
-const int ERROR_MARGIN = 1;
-
 bool isSystemActive = false; 
 
 void setup() {
@@ -20,7 +17,7 @@ void setup() {
   pinMode(PIN_ECHO, INPUT);
   
   pixels.begin();
-  pixels.setBrightness(50); 
+  pixels.setBrightness(50); // 밝기 조절 함수 (너무 밝아서 줄이는...)
   pixels.show();
 }
 
