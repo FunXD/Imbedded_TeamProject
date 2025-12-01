@@ -32,19 +32,6 @@ void loop() {
     }
   }
   
-  if (distance < (BOX_HEIGHT - ERROR_MARGIN)) {
-    inside = 1;
-  } else {
-    inside = 0;
-  }
-
-  static unsigned long lastSendTime = 0;
-  if (millis() - lastSendTime > 500) { 
-    int sendDist = (distance > 255) ? 255 : distance;
-    mySerial.write((byte)sendDist);
-    lastSendTime = millis();
-  }
-
   if (isSystemActive) {
     if (inside == 1) { // 물건 있음 -> 빨간색
       setNeoPixelColor(255, 0, 0);   
