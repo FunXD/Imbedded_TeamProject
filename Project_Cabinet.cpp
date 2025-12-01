@@ -40,12 +40,19 @@ int soundinside(){
     return 0; // 없으면 0
 } // for ultrasound
 
+void sendUART(const byte what){
+  mySerial.write(what);
+  delayMicroseconds(20);
+  return;
+} // for UART
+
 void Relayinit() {
   digitalWrite(PIN_LOCK, HIGH);
   digitalWrite(PIN_FAN, HIGH);
   LOCK_OFF = true;
   complet_JOB = false;
   itsLOCK = true;
+  sendUART(5);
 } // for init
 
 void setup() {
@@ -88,9 +95,12 @@ void loop() {
     delay(100);
 
     // 선택
-    if (MENU == 1){ // 초기 넣는 과정
+    if (MENU == 1){ // 초기, 넣는 과정
       Serial.println("Sequnce 1");
       
+      // UART Comm (Green Light)
+      sendUART(3);
+
       if(itsLOCK == 1){
         itsLOCK = 0;
         digitalWrite(PIN_LOCK, LOW); // 솔레노이드 열림.
@@ -111,6 +121,9 @@ void loop() {
     else if (MENU == 2) { // 넣고 빼는 과정
       Serial.println("its Sequnce 2");
 
+      // UART Comm (Green Light)
+      sendUART(4);
+
       // 1-3. LM35 Tempture
       tempture = (analogRead(PIN_LM35) * 5.0 * 100.0) / 1024.0;
       Serial.print("Temp : ");
@@ -128,7 +141,7 @@ void loop() {
       inside = soundinside();
       Serial.println(inside);
 
-      // 끝나는 조건 (잠기지 않았고, 안에가 비었고, )
+      // Exit Condition (잠기지 않았고, 안에가 비었고, 문이 닫혔으면)
       if(itsLOCK == 0 && inside == 0 && itsOPEN == 0) {
         complet_JOB = true;
         MENU = 1;
@@ -142,7 +155,7 @@ void loop() {
       }
     }
 
-    // 1. 종료 : 끝났으면?
+    // 1. Exit
     if(complet_JOB) { // 일이 끝났으면
       MENU = 1;
       IhavSel = 0;
