@@ -22,10 +22,6 @@ void setup() {
   pixels.begin();
   pixels.setBrightness(50); 
   pixels.show();
-
-  Serial.begin(9600);   
-  mySerial.begin(9600); 
-  Serial.println("Sensor Board Ready");
 }
 
 void loop() {
