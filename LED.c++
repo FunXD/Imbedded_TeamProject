@@ -9,6 +9,7 @@ const int NUM_PIXELS = 16;
 Adafruit_NeoPixel pixels(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
 bool isSystemActive = false; 
+volatile int LED_color; // ++ 
 
 void setup() {
   pinMode(PIN_TRIG, OUTPUT);
@@ -22,22 +23,28 @@ void setup() {
 void loop() {
   if (mySerial.available()) {
     char cmd = mySerial.read();
-    if (cmd == '3') {
-      isSystemActive = true; 
+
+    if (cmd == 3) { // 3 (Green 배달기사 유도등) or 4 (Blue 사용자 안내등)
+      isSystemActive = 1;
+      LED_color = cmd;
+    } else if (cmd == 4) { // Blue LED == 사용자 안내용
+      isSystemActive = 1;
+      LED_color = cmd;
+    } else if (cmd == 5) { // Off Condition
+      isSystemActive = 0;
     }
   }
   
   if (isSystemActive) {
-    if (inside == 1) { // 물건 있음 -> 빨간색
-      setNeoPixelColor(255, 0, 0);   
-    } 
-    else { // 물건 없음 -> 파란색
+    if (LED_color = 3) { //
+      setNeoPixelColor(0, 255, 0);   
+    } else if (LED_color = 4) { // 물건 없음 -> 파란색
       setNeoPixelColor(0, 0, 255); 
     }
-  } 
-  else {
+  } else {
     setNeoPixelColor(0, 0, 0); // 전원 off
   }
+  
   delay(50); 
 }
 
