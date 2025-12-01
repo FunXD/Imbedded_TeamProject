@@ -1,5 +1,5 @@
 #include <SoftwareSerial.h>
-#include <Adafruit_NeoPixel.h>
+#include <Adafruit_NeoPixel.h> // 추가 라이브러리 다운로드 필요!
 
 const int PIN_TRIG      = 4;
 const int PIN_ECHO      = 3;
