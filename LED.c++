@@ -3,72 +3,68 @@
 
 const int PIN_TRIG      = 4;
 const int PIN_ECHO      = 3;
-const int PIN_NEOPIXEL  = 6;
+const int PIN_NEOPIXEL  = 6;    // 네오픽셀 DIN
 
 SoftwareSerial mySerial(8, 9); 
 
 const int NUM_PIXELS = 16;      
 Adafruit_NeoPixel pixels(NUM_PIXELS, PIN_NEOPIXEL, NEO_GRB + NEO_KHZ800);
 
-const int BOX_HEIGHT = 29; // 박스 임시 높이
-const int ERROR_MARGIN = 1; // 박스 높이 오차 범위 
+const int BOX_HEIGHT = 29;
+const int ERROR_MARGIN = 1;
 
-bool isSystemActive = false; // 3을 보내기 전 꺼져있음
+bool isSystemActive = false; 
 
 void setup() {
   pinMode(PIN_TRIG, OUTPUT);
   pinMode(PIN_ECHO, INPUT);
   
   pixels.begin();
-  pixels.setBrightness(29); 
-  pixels.show(); // 초기 상태: 꺼짐
+  pixels.setBrightness(50); 
+  pixels.show();
 
   Serial.begin(9600);   
   mySerial.begin(9600); 
-  Serial.println("System Started (Wait for '3')");
+  Serial.println("Sensor Board Ready");
 }
 
 void loop() {
   if (mySerial.available()) {
-    char cmd = mySerial.read(); // 대기
-    
-    if (cmd == '3') { // 만약 3 명령을 받았을 경우
+    char cmd = mySerial.read();
+    if (cmd == '3') {
       isSystemActive = true; 
     }
-    //
   }
   
-  long duration, distance;
-  digitalWrite(PIN_TRIG, LOW); delayMicroseconds(2);
-  digitalWrite(PIN_TRIG, HIGH); delayMicroseconds(10);
-  digitalWrite(PIN_TRIG, LOW);
-  duration = pulseIn(PIN_ECHO, HIGH);
-  distance = duration * 0.034 / 2;
+  if (distance < (BOX_HEIGHT - ERROR_MARGIN)) {
+    inside = 1;
+  } else {
+    inside = 0;
+  }
 
-
-  static unsigned long lastSendTime = 0; // 거리값 전송
+  static unsigned long lastSendTime = 0;
   if (millis() - lastSendTime > 500) { 
     int sendDist = (distance > 255) ? 255 : distance;
-    mySerial.write((byte)sendDist); 
+    mySerial.write((byte)sendDist);
     lastSendTime = millis();
   }
 
-  if (isSystemActive == true) { // 거리를 통한 LED 색상 변경 
-    if (distance >= (BOX_HEIGHT - ERROR_MARGIN)) {
-      setNeoPixelColor(0, 0, 255); // 물건 없을 때
+  if (isSystemActive) {
+    if (inside == 1) { // 물건 있음 -> 빨간색
+      setNeoPixelColor(255, 0, 0);   
     } 
-    else {
-      setNeoPixelColor(255, 0, 0); // 물건 있을 때
+    else { // 물건 없음 -> 파란색
+      setNeoPixelColor(0, 0, 255); 
     }
   } 
   else {
-    setNeoPixelColor(0, 0, 0); // 시스템 비활성화
+    setNeoPixelColor(0, 0, 0); // 전원 off
   }
-  
   delay(50); 
 }
 
-void setNeoPixelColor(int r, int g, int b) { // 색상 변경 함수
+// 색상 변경 함수
+void setNeoPixelColor(int r, int g, int b) {
   for(int i=0; i<NUM_PIXELS; i++) {
     pixels.setPixelColor(i, pixels.Color(r, g, b));
   }
