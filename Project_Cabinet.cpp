@@ -33,6 +33,7 @@ int soundinside(){
   digitalWrite(PIN_Trig, LOW);
   T = pulseIn(PIN_Echo, HIGH);
   L = T / 58.82;
+  delay(200);
 
   if (L >= rangeMin && L <= rangeMax) 
     return 1; // 있으면 1
